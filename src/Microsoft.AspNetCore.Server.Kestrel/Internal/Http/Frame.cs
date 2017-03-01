@@ -47,6 +47,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
         private static readonly byte[] _bytesHttpVersion11 = Encoding.ASCII.GetBytes("HTTP/1.1 ");
         private static readonly byte[] _bytesEndHeaders = Encoding.ASCII.GetBytes("\r\n\r\n");
         private static readonly byte[] _bytesServer = Encoding.ASCII.GetBytes("\r\nServer: Kestrel");
+        private static readonly bool[] _validTokenMap = CreateValidTokenMap();
 
         private readonly object _onStartingSync = new Object();
         private readonly object _onCompletedSync = new Object();
@@ -1055,6 +1056,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
             var httpVersion = "";
             var method = "";
             var state = StartLineState.KnownMethod;
+            bool[] validTokenMap = _validTokenMap;
 
             fixed (byte* data = &span.DangerousGetPinnableReference())
             {
@@ -1092,7 +1094,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
 
                                 state = StartLineState.Path;
                             }
-                            else if (!IsValidTokenChar((char)ch))
+                            else if (!validTokenMap[ch])
                             {
                                 RejectRequestLine(start, end);
                             }
@@ -1300,6 +1302,13 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
                 c == '`' ||
                 c == '|' ||
                 c == '~';
+        }
+
+        private static bool[] CreateValidTokenMap()
+        {
+            bool[] map = new bool[255];
+            for (int i = 0; i < map.Length; i++) map[i] = IsValidTokenChar((char)i);
+            return map;
         }
 
         private bool RequestUrlStartsWithPathBase(string requestUrl, out bool caseMatches)
